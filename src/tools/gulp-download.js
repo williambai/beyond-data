@@ -38,8 +38,8 @@ module.exports = function(urls){
 				var fileName = url.file || url.url.split('/').pop();
 				var file = new gutil.File( {path:fileName, contents: new Buffer(body)} );
 				stream.queue(file);
-				process.stdout.write(' '+col.green('Done\n'));
 			}
+			process.stdout.write(' '+col.green('Done\n'));
 			downloadCount++;
 			if(downloadCount != files.length){
 				download(files[downloadCount])
