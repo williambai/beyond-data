@@ -11,6 +11,8 @@
   "dependencies": {
     "del": "^1.1.1",
     "gulp": "^3.8.11",
+    "gulp-concat": "^2.5.2",
+    "gulp-replace": "^0.5.3",
     "gulp-util": "^3.0.4",
     "gutil": "^1.6.4",
     "mongoose": "^3.8.25",
@@ -19,7 +21,11 @@
     "request-progress": "^0.3.1",
     "run-sequence": "^1.0.2",
     "through": "^2.3.6",
+    "through2": "^0.6.3",
     "underscore": "^1.8.2",
     "xml2js": "^0.4.6"
+  },
+  "devDependencies": {
+    "jasmine-node": "^1.14.5"
   }
 }

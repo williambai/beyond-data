@@ -14,7 +14,12 @@ var path= require('path');
 var gulp = require('gulp');
 var seq = require('run-sequence');
 var del = require('del');
+var exclude = require('./src/tools/gulp-exclude');
+var replace = require('gulp-replace');
+var concat = require('gulp-concat');
+
 var download = require("./src/tools/gulp-download");
+var mongodb = require('./src/tools/gulp-mongodb');
 
 /*=========================================
 =            Clean dest folder            =
@@ -89,27 +94,36 @@ gulp.task('fetch_economics', function(done) {
 });
 
 /*=========================================
+=            build data for svm           =
+=========================================*/
+
+gulp.task('build_data',function(done){
+	gulp.src(path.join(config.dest,'stock','zh_cn','bk*.js'))
+		.pipe(exclude(/klinedata=.+[0-9]+/))
+		.pipe(replace('var klinedata="',''))
+		.pipe(replace('";',''))
+		.pipe(concat('stock_bk.dat'))
+		.pipe(gulp.dest(path.join(config.dest,'svm')));
+
+});
+
+/*=========================================
 =            build database               =
 =========================================*/
 
-gulp.task('build_mongo',function(done){
-	var collections = {};
-	var DB_NAME = 'economics';
-	var fixtures = require('pow-mongodb-fixtures').connect(DB_NAME);
-	//transform data in files into mongodb
-	
-	//reset and reload MongoDB 
-	fixtures.clearAndLoad(
-		collections
-		,function(err){
-			if(err) throw err;
-			fixtures.close(function(err){
-				if(err) throw err;
-				console.log('finished.');
-				done && done();
-			});
+gulp.task('build_mongo_stock',function(){
+	var mongoose = require('mongoose');
+	mongoose.connect('mongodb://localhost/economics');
+	require('./src/model')();
+	var Stock = mongoose.model('Stock');
+	Stock.remove(function(){
+		mongoose.disconnect();
+		gulp.src(path.join(config.dest,'stock','zh_cn','bk*.js'))
+			.pipe(exclude(/klinedata=.+[0-9]+/))
+			.pipe(replace('var klinedata="',''))
+			.pipe(replace('";',''))
+			.pipe(mongodb(mongoose,'Stock'));
 	});
-
 });
 
 
