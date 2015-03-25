@@ -3,6 +3,7 @@ var gutil = require('gulp-util');
 var PluginError = gutil.PluginError;
 var util = require('./util');
 var _ = require('underscore');
+var fs = require('fs');
 
 var stockArrayBuilder = function(code,contents){
 	contents = contents || '';
@@ -37,7 +38,7 @@ var stockArrayBuilder = function(code,contents){
 	return stocks;
 }
 
-exports = module.exports = function(mongoose,model){
+var storeFromFiles = function(mongoose,model){
 	return through.obj(function(file,env,next){
 		if(file.isNull()){
 			return next();
@@ -59,4 +60,61 @@ exports = module.exports = function(mongoose,model){
 			});
 		}
 	});
-};;
+};
+
+var fetchIntoFiles = function(mongoose,model,next){
+	mongoose.connect('mongodb://localhost/economics');
+	var Stock = mongoose.model(model);
+	Stock.find().select('code time opened closed -_id').sort('-code').exec(function(err,codes){
+		// console.log(codes);
+		if(err) throw err;
+		var _times = _.sortBy(_.union(_.pluck(codes,'time'))).reverse();
+		// console.log(_times);
+		var _codes = _.sortBy(_.union(_.pluck(codes,'code')));
+		// console.log(_codes);
+		var output = [];
+		for(var i=0; i<_times.length; i++){
+			output[i] = [];
+			for(var j=0; j<_codes.length; j++){
+				output[i][j] = '0.00';
+			}
+		}
+		codes.forEach(function(transaction){
+			// console.log(transaction);
+			var i = _.indexOf(_times,transaction.time);
+			var j = _.indexOf(_codes,transaction.code);
+			// console.log(i + '-' + j);
+			output[i][j] = (100.00*(transaction.closed-transaction.opened)/transaction.opened).toFixed(2);
+			// console.log(output[i][j]);
+		})
+		// console.log(output[10].length);
+		for(j=0 ;j< _codes.length; j++){
+			var predictData = '',testData = '';
+			for(i = 0; i< _times.length; i++){
+				var line = output[i].join(',');
+				var isMatched = line.match(/0\.00/g);
+				if(!isMatched || isMatched.length < 50){
+					var goodOrBad = Math.abs(output[i][j]) > 2.0 ? 1 : 0; //涨跌幅超过2%
+					var middle = '';
+					for(var k=0; k<_codes.length; k++){
+						middle += (k+1) + ':' + output[i][k] + ' ';
+					}
+					middle += '\n';
+					if(i<10){
+						testData += goodOrBad + ' ' + middle;
+					}else{
+						predictData += goodOrBad + ' ' + middle;
+					}
+				}
+			}
+			fs.writeFileSync('./dest/svm/train/'+_codes[j] + '.dat',predictData);
+			fs.writeFileSync('./dest/svm/test/'+_codes[j] + '.dat',testData);
+		}
+		mongoose.disconnect();
+	});
+}
+
+exports = module.exports = {
+	storeFromFiles: storeFromFiles,
+	fetchIntoFiles: fetchIntoFiles,
+}

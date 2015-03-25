@@ -94,20 +94,6 @@ gulp.task('fetch_economics', function(done) {
 });
 
 /*=========================================
-=            build data for svm           =
-=========================================*/
-
-gulp.task('build_data',function(done){
-	gulp.src(path.join(config.dest,'stock','zh_cn','bk*.js'))
-		.pipe(exclude(/klinedata=.+[0-9]+/))
-		.pipe(replace('var klinedata="',''))
-		.pipe(replace('";',''))
-		.pipe(concat('stock_bk.dat'))
-		.pipe(gulp.dest(path.join(config.dest,'svm')));
-
-});
-
-/*=========================================
 =            build database               =
 =========================================*/
 
@@ -122,10 +108,46 @@ gulp.task('build_mongo_stock',function(){
 			.pipe(exclude(/klinedata=.+[0-9]+/))
 			.pipe(replace('var klinedata="',''))
 			.pipe(replace('";',''))
-			.pipe(mongodb(mongoose,'Stock'));
+			.pipe(mongodb.storeFromFiles(mongoose,'Stock'));
 	});
 });
 
+gulp.task('export_stock',function(){
+	var mongoose = require('mongoose');
+	require('./src/model')();
+	mongodb.fetchIntoFiles(mongoose,'Stock');	
+})
+/*=========================================
+=            build data for svm           =
+=========================================*/
+
+gulp.task('build_data',function(done){
+	gulp.src(path.join(config.dest,'stock','zh_cn','bk*.js'))
+		.pipe(exclude(/klinedata=.+[0-9]+/))
+		.pipe(replace('var klinedata="',''))
+		.pipe(replace('";',''))
+		.pipe(concat('stock_bk.dat'))
+		.pipe(gulp.dest(path.join(config.dest,'svm')));
+
+});
+
+gulp.task('svm',function(){
+	var svm = require('node-svm');
+	var clf = new svm.SVM();
+	svm.read('./dest/svm/train/991020.dat')
+		.then(function(dataset){
+			return clf.train(dataset);
+		})
+		.then(function(trainedModel,trainingReport){
+			return svm.read('./dest/svm/test/991020.dat');
+		})
+		.then(function(testset){
+			return clf.evaluate(testset);
+		})
+		.done(function(report){
+			console.log(report);
+		});
+});
 
 /*====================================
 =            Default Task            =
