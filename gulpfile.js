@@ -94,7 +94,7 @@ gulp.task('fetch_economics', function(done) {
 });
 
 /*=========================================
-=            build database               =
+=            build mongo database         =
 =========================================*/
 
 gulp.task('build_mongo_stock',function(){
